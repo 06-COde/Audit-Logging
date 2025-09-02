@@ -10,24 +10,25 @@ const auth = (req, res, next) => {
 
     const decoded = verifyToken(token);
 
-    // Normalize user object to always have id + organizationId
     req.user = {
-      id: decoded.id || decoded._id || decoded.userId || decoded.user_id,
+      id: decoded.id || decoded._id || decoded.userId || decoded.user_id || null,
       organizationId:
         decoded.organizationId ||
         decoded.orgId ||
         decoded.organization_id ||
         decoded.org ||
-        decoded._id, // fallback in case org is stored in _id
-      email: decoded.email,
+        null,
+      email: decoded.email || null,
     };
 
-    if (!req.user.id || !req.user.organizationId) {
+    // ✅ Require at least organizationId
+    if (!req.user.organizationId) {
       return res.status(400).json({
-        message: "Invalid token payload: userId/organizationId missing",
+        message: "Invalid token payload: organizationId missing",
       });
     }
 
+    // ✅ If route needs userId, handle in that route/controller instead
     next();
   } catch (error) {
     return res.status(401).json({ message: "Invalid or expired token" });
