@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 export const connectDB = async () => {
   if (!process.env.MONGO_URI) {
-    console.error(" MONGO_URI is missing in environment variables");
+    console.error("❌ MONGO_URI is missing in environment variables");
     process.exit(1);
   }
 
@@ -12,18 +12,20 @@ export const connectDB = async () => {
         useNewUrlParser: true,
         useUnifiedTopology: true,
       });
-      console.log(" MongoDB connected successfully");
+      console.log(`✅ MongoDB connected successfully (PID: ${process.pid})`);
     } catch (error) {
       if (retries === 0) {
-        console.error("MongoDB connection failed. No retries left.");
+        console.error("❌ MongoDB connection failed. No retries left.");
         if (process.env.NODE_ENV !== "production") {
-          console.error(error); 
+          console.error(error);
         }
         process.exit(1);
       }
 
       console.warn(
-        `⚠️ MongoDB connection failed. Retrying in ${delay / 1000} seconds... (${retries} retries left)`
+        `⚠️ MongoDB connection failed. Retrying in ${
+          delay / 1000
+        } seconds... (${retries} retries left)`
       );
       setTimeout(() => connectWithRetry(retries - 1, delay * 2), delay);
     }
@@ -32,11 +34,21 @@ export const connectDB = async () => {
   // Start first attempt: 5 retries, 2 seconds delay
   await connectWithRetry(5, 2000);
 
-  // Graceful shutdown 
-  process.on("SIGINT", async () => {
-    await mongoose.connection.close();
-    console.log(" MongoDB connection closed due to app termination");
-    process.exit(0);
-  });
+  // ✅ Graceful shutdown (handles multiple signals safely)
+  const shutdown = async (signal) => {
+    try {
+      console.log(`\n🛑 ${signal} received. Closing MongoDB connection...`);
+      await mongoose.connection.close();
+      console.log(`✅ MongoDB connection closed (PID: ${process.pid})`);
+      process.exit(0);
+    } catch (err) {
+      console.error("❌ Error closing MongoDB connection:", err);
+      process.exit(1);
+    }
+  };
+
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 };
+
 export default connectDB;

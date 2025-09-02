@@ -1,10 +1,11 @@
 import { verifyToken } from "../utils/jwt.js";
+import logger from "../utils/logger.js";
 
 const auth = (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
-
     if (!token) {
+      logger.warn({ path: req.originalUrl }, "Auth failed: no token");
       return res.status(401).json({ message: "No token provided" });
     }
 
@@ -21,16 +22,14 @@ const auth = (req, res, next) => {
       email: decoded.email || null,
     };
 
-    // ✅ Require at least organizationId
     if (!req.user.organizationId) {
-      return res.status(400).json({
-        message: "Invalid token payload: organizationId missing",
-      });
+      logger.warn({ user: req.user, path: req.originalUrl }, "Auth failed: organizationId missing in token");
+      return res.status(400).json({ message: "Invalid token payload: organizationId missing" });
     }
 
-    // ✅ If route needs userId, handle in that route/controller instead
     next();
   } catch (error) {
+    logger.warn({ err: error, path: req.originalUrl }, "Auth failed: invalid or expired token");
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 };

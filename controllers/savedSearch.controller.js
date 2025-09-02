@@ -4,13 +4,20 @@ import SavedSearch from "../models/savedSearch.model.js";
 export const createSavedSearch = async (req, res, next) => {
   try {
     const { name, query, isGlobal } = req.body;
+
+    // Safety check: ensure req.user is attached
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: "Unauthorized: user not found in request" });
+    }
+
     const savedSearch = await SavedSearch.create({
       organizationId: req.user.organizationId,
-      userId: req.user.id,
+      userId: req.user.id,  // ✅ now guaranteed
       name,
       query,
       isGlobal,
     });
+
     res.status(201).json({ success: true, data: savedSearch });
   } catch (error) {
     next(error);
@@ -24,6 +31,7 @@ export const listSavedSearches = async (req, res, next) => {
       organizationId: req.user.organizationId,
       $or: [{ userId: req.user.id }, { isGlobal: true }],
     });
+
     res.json({ success: true, data: savedSearches });
   } catch (error) {
     next(error);
@@ -34,7 +42,11 @@ export const listSavedSearches = async (req, res, next) => {
 export const getSavedSearch = async (req, res, next) => {
   try {
     const savedSearch = await SavedSearch.findById(req.params.id);
-    if (!savedSearch) return res.status(404).json({ message: "Not found" });
+
+    if (!savedSearch) {
+      return res.status(404).json({ success: false, message: "Not found" });
+    }
+
     res.json({ success: true, data: savedSearch });
   } catch (error) {
     next(error);

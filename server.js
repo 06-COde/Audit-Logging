@@ -10,13 +10,13 @@ import { errorHandler } from "./middlewares/error.handler.js";
 import organizationRoutes from "./routes/organization.routes.js";
 import savedSearchRoutes from "./routes/savedSearch.routes.js";
 import logRoutes from "./routes/log.routes.js";
-import { apiLimiter } from "./middlewares/rate.limiter.js";
+import { apiLimiter, orgLimiter } from "./middlewares/rate.limiter.js";
 import logger from "./utils/logger.js";
 
 const numCPUs = os.cpus().length;
 const PORT = process.env.PORT || 5001;
 
-validateEnv();
+validateEnv();                                                                                                                  
 
 if (cluster.isPrimary) {
   logger.info(`Primary ${process.pid} is running`);
@@ -40,8 +40,8 @@ if (cluster.isPrimary) {
   app.use(cors());
   app.use(express.json());
 
-  // Apply rate limiter
-  app.use("/api/", apiLimiter);
+  // 🌍 Apply global rate limiter for all API endpoints
+  app.use("/api", apiLimiter);
 
   // Routes
   app.get("/", (req, res) => {
@@ -57,7 +57,10 @@ if (cluster.isPrimary) {
     });
   });
 
-  app.use("/api/logs", logRoutes);
+  // 🏢 Org-level limiter specifically for logs
+  app.use("/api/logs", orgLimiter, logRoutes);
+
+  // Other routes without org limiter
   app.use("/api/saved-searches", savedSearchRoutes);
   app.use("/api/organizations", organizationRoutes);
 

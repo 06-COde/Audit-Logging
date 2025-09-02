@@ -1,11 +1,20 @@
-import express from 'express';
-import auth from '../middlewares/auth.middleware.js';
-import { createLog , listLogs , logsStats } from '../controllers/logs.controller.js';
+import express from "express";
+import auth from "../middlewares/auth.middleware.js";
+import {
+  createLog,
+  listLogs,
+  aggregateSummary,
+} from "../controllers/logs.controller.js";
 
 const router = express.Router();
 
-router.post('/', auth,createLog);
-router.get("/", auth, listLogs);             // Get paginated logs with filters
-router.get("/stats", auth, logsStats);      // Get aggregated stats
+// Create log
+router.post("/", auth, createLog);
+
+// List logs (with filters & search)
+router.get("/", auth, listLogs);
+
+// Aggregated dashboard summary
+router.get("/aggregate/summary", auth, aggregateSummary);
 
 export default router;
