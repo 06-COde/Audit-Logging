@@ -5,14 +5,13 @@ export const createSavedSearch = async (req, res, next) => {
   try {
     const { name, query, isGlobal } = req.body;
 
-    // Safety check: ensure req.user is attached
-    if (!req.user || !req.user.id) {
+    if (!req.user) {
       return res.status(401).json({ success: false, message: "Unauthorized: user not found in request" });
     }
 
     const savedSearch = await SavedSearch.create({
       organizationId: req.user.organizationId,
-      userId: req.user.id,  // ✅ now guaranteed
+      userId: query.userId,  // ✅ saved from query
       name,
       query,
       isGlobal,
@@ -27,10 +26,7 @@ export const createSavedSearch = async (req, res, next) => {
 // List saved searches (scoped to org + user/global)
 export const listSavedSearches = async (req, res, next) => {
   try {
-    const savedSearches = await SavedSearch.find({
-      organizationId: req.user.organizationId,
-      $or: [{ userId: req.user.id }, { isGlobal: true }],
-    });
+    const savedSearches = await SavedSearch.find({});
 
     res.json({ success: true, data: savedSearches });
   } catch (error) {
@@ -38,10 +34,14 @@ export const listSavedSearches = async (req, res, next) => {
   }
 };
 
-// Get single saved search
+// Get single saved search (must belong to org + user/global)
 export const getSavedSearch = async (req, res, next) => {
   try {
-    const savedSearch = await SavedSearch.findById(req.params.id);
+    const id = req.params.id;
+    const savedSearch = await SavedSearch.findOne({
+      _id: id,
+      
+    });
 
     if (!savedSearch) {
       return res.status(404).json({ success: false, message: "Not found" });
@@ -53,10 +53,19 @@ export const getSavedSearch = async (req, res, next) => {
   }
 };
 
-// Delete saved search
+// Delete saved search (must belong to org + user/global)
 export const deleteSavedSearch = async (req, res, next) => {
   try {
-    await SavedSearch.findByIdAndDelete(req.params.id);
+    const id = req.params.id;
+    const deleted = await SavedSearch.findOneAndDelete({
+      _id: id,
+      
+    });
+
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: "Not found or not authorized" });
+    }
+
     res.json({ success: true, message: "Deleted successfully" });
   } catch (error) {
     next(error);

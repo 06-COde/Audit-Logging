@@ -1,6 +1,6 @@
 import Log from "../models/logs.model.js";
 import { checkSuspiciousActivity } from "../services/checkSuspiciousActivity.js";
-import { buildPagination } from "../utils/pagination.js";
+import { buildPagination, encodeCursor } from "../utils/pagination.js";
 
 // 📌 Create new log entry
 export const createLog = async (req, res, next) => {
@@ -41,11 +41,12 @@ export const listLogs = async (req, res, next) => {
       sortBy = "timestamp",
       order = "desc",
       search,
+      cursor,
       ...filters
     } = req.query;
 
     const query = {
-      organizationId: req.user?.organizationId || req.body.organizationId, // fallback for Postman
+      organizationId: req.user?.organizationId || req.body.organizationId,
     };
 
     // Apply filters
@@ -53,7 +54,7 @@ export const listLogs = async (req, res, next) => {
     if (filters.userId) query["user.id"] = filters.userId;
     if (filters.action) query.action = new RegExp(filters.action, "i");
 
-    // Fuzzy search across multiple fields
+    // Fuzzy search
     if (search) {
       query.$or = [
         { action: new RegExp(search, "i") },
@@ -64,24 +65,53 @@ export const listLogs = async (req, res, next) => {
       ];
     }
 
-    const pagination = buildPagination(page, limit);
+    let logs = [];
+    let total = null;
 
-    const logs = await Log.find(query)
-      .sort({ [sortBy]: order === "asc" ? 1 : -1 })
-      .skip(pagination.skip)
-      .limit(pagination.limit);
+    if (cursor) {
+      // -------- Cursor Pagination --------
+      const pagination = buildPagination(req.query); // no total here
 
-    const total = await Log.countDocuments(query);
+      // Apply cursor condition (for example: timestamp < cursor.timestamp)
+      query.$or = [
+        { [sortBy]: { [order === "asc" ? "$gt" : "$lt"]: pagination.cursor[sortBy] } },
+        {
+          [sortBy]: pagination.cursor[sortBy],
+          _id: { [order === "asc" ? "$gt" : "$lt"]: pagination.cursor._id },
+        },
+      ];
 
-    res.json({
-      success: true,
-      data: logs,
-      meta: {
-        total,
-        page: pagination.page,
-        pages: Math.ceil(total / pagination.limit),
-      },
-    });
+      logs = await Log.find(query)
+        .sort({ [sortBy]: order === "asc" ? 1 : -1, _id: order === "asc" ? 1 : -1 })
+        .limit(pagination.limit);
+
+      // Build meta with nextCursor
+      const meta = pagination.meta;
+      if (logs.length === pagination.limit) {
+        const last = logs[logs.length - 1];
+        meta.nextCursor = encodeCursor({ [sortBy]: last[sortBy], _id: last._id });
+        meta.hasNextPage = true;
+      } else {
+        meta.hasNextPage = false;
+      }
+
+      return res.json({ success: true, data: logs, meta });
+    } else {
+      // -------- Offset Pagination --------
+      total = await Log.countDocuments(query);
+      const pagination = buildPagination(req.query, total);
+
+      logs = await Log.find(query)
+        .sort(pagination.sort)
+        .skip((pagination.page - 1) * pagination.limit)
+        .limit(pagination.limit);
+
+      return res.json({
+        success: true,
+        data: logs,
+        meta: pagination.meta,
+      });
+    }
   } catch (error) {
     console.error("List Logs Error:", error);
     next(error);
