@@ -1,8 +1,8 @@
 
+
 export const validateEnv = () => {
   const errors = [];
 
-  // Normalize: trim + remove quotes
   const normalize = (val) =>
     val ? val.toString().trim().replace(/^"(.+(?="$))"$/, "$1") : "";
 
@@ -15,46 +15,40 @@ export const validateEnv = () => {
   const ATLAS_SEARCH_INDEX = normalize(process.env.ATLAS_SEARCH_INDEX);
 
   // --- MongoDB ---
-  if (!MONGO_URI) {
-    errors.push("MONGO_URI is required in .env file");
-  } else if (!MONGO_URI.startsWith("mongodb+srv://")) {
-    errors.push("MONGO_URI must be a valid MongoDB Atlas connection string");
+  if (!MONGO_URI) errors.push("MONGO_URI is required in .env file");
+  else if (
+    !MONGO_URI.startsWith("mongodb://") &&
+    !MONGO_URI.startsWith("mongodb+srv://")
+  ) {
+    errors.push("MONGO_URI must be a valid MongoDB connection string");
   }
 
   // --- Port ---
-  if (!PORT) {
-    errors.push("PORT is required in .env file");
-  } else if (isNaN(PORT)) {
-    errors.push("PORT must be a number");
-  }
+  if (!PORT) errors.push("PORT is required in .env file");
+  else if (isNaN(PORT)) errors.push("PORT must be a number");
 
   // --- JWT ---
-  if (!JWT_SECRET) {
-    errors.push("JWT_SECRET is required in .env file");
-  } else if (JWT_SECRET.length < 16) {
+  if (!JWT_SECRET) errors.push("JWT_SECRET is required in .env file");
+  else if (JWT_SECRET.length < 16)
     errors.push("JWT_SECRET should be at least 16 characters long");
-  }
 
   // --- Email ---
-  if (!ALERT_EMAIL) {
-    errors.push("ALERT_EMAIL is required in .env file");
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ALERT_EMAIL)) {
+  if (!ALERT_EMAIL) errors.push("ALERT_EMAIL is required in .env file");
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ALERT_EMAIL))
     errors.push("ALERT_EMAIL must be a valid email address");
-  }
 
   // --- Email Password ---
-  if (!ALERT_EMAIL_PASS) {
-    errors.push("ALERT_EMAIL_PASS is required in .env file");
-  }
-  if (/\s/.test(ALERT_EMAIL_PASS) && !/^".+"$/.test(process.env.ALERT_EMAIL_PASS)) {
+  if (!ALERT_EMAIL_PASS) errors.push("ALERT_EMAIL_PASS is required in .env file");
+  if (/\s/.test(ALERT_EMAIL_PASS) && !/^".+"$/.test(process.env.ALERT_EMAIL_PASS))
     errors.push("ALERT_EMAIL_PASS contains spaces — wrap it in quotes in .env");
-  }
 
   // --- Atlas Search ---
-  if (USE_ATLAS_SEARCH && !["true", "false"].includes(USE_ATLAS_SEARCH.toLowerCase())) {
+  if (
+    USE_ATLAS_SEARCH &&
+    !["true", "false"].includes(USE_ATLAS_SEARCH.toLowerCase())
+  ) {
     errors.push("USE_ATLAS_SEARCH must be either true or false");
   }
-
   if (USE_ATLAS_SEARCH.toLowerCase() === "true" && !ATLAS_SEARCH_INDEX) {
     errors.push("ATLAS_SEARCH_INDEX is required when USE_ATLAS_SEARCH is true");
   }

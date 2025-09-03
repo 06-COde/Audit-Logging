@@ -1,3 +1,10 @@
+
+/**
+ * Build pagination object for offset or cursor-based pagination
+ * @param {Object} query - req.query
+ * @param {number|null} total - total count (for offset pagination)
+ * @returns {Object}
+ */
 export const buildPagination = (query, total = null) => {
   const {
     page = 1,
