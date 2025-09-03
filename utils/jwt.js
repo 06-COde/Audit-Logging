@@ -1,36 +1,29 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+if (!process.env.JWT_SECRET) {
+  console.warn("⚠️ Warning: JWT_SECRET not set in env! Generate a secure key.");
+}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export const generateToken = (user, expiresIn = "5h") => {
-  // ✅ normalize values so both saved searches & logs always work
+  if (!JWT_SECRET) throw new Error("JWT secret missing in environment");
+
+  // Ensure both id and organizationId are present
   const payload = {
-    id:
-      user._id?.toString() ||
-      user.id ||
-      user.userId ||
-      user.user_id, // fallback mappings
+    id: user._id?.toString() || user.id || user.userId || user.user_id || null,
     organizationId:
-      user.organizationId?.toString() ||
-      user.orgId ||
-      user.organization_id ||
-      user.org, // fallback mappings
+      user.organizationId?.toString() || user.orgId || user.organization_id || user.org || null,
     email: user.email || null,
-    name: user.name || user.userName || null, // optional convenience
+    name: user.name || user.userName || null,
+    system: user.system || false, // optional flag for system actions
   };
 
   return jwt.sign(payload, JWT_SECRET, { expiresIn });
 };
 
 export const verifyToken = (token) => {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (error) {
-    throw new Error("Invalid token");
-  }
+  if (!JWT_SECRET) throw new Error("JWT secret missing in environment");
+  return jwt.verify(token, JWT_SECRET);
 };
 
-// Decode token without verifying (useful for debugging)
-export const decodeToken = (token) => {
-  return jwt.decode(token);
-};
+export const decodeToken = (token) => jwt.decode(token);

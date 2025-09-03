@@ -16,7 +16,6 @@ export const buildPagination = (query, total = null) => {
     limit: parsedLimit,
     sort: { [sortBy]: sortOrder },
     cursor: null,
-    // Meta (default, may be overridden later in controller)
     meta: {
       total: total ?? null,
       pages: total ? Math.ceil(total / parsedLimit) : null,
@@ -29,18 +28,15 @@ export const buildPagination = (query, total = null) => {
     },
   };
 
-  // If cursor exists → switch to cursor-based pagination
   if (cursor) {
     try {
       const decoded = decodeCursor(cursor);
       pagination.cursor = decoded;
-
-      // When cursor-based, we don’t know total pages
       pagination.meta = {
         total: null,
         pages: null,
-        hasPrevPage: false, // usually handled differently in cursor
-        hasNextPage: true,  // assume true until proven false in controller
+        hasPrevPage: false,
+        hasNextPage: true,
         prevPage: null,
         nextPage: null,
         prevCursor: null,
@@ -54,6 +50,9 @@ export const buildPagination = (query, total = null) => {
   return pagination;
 };
 
-// 🔹 Base64 JSON cursor encoder/decoder
+// Base64 JSON cursor encoder/decoder
 export const encodeCursor = (obj) =>
   Buffer.from(JSON.stringify(obj)).toString("base64url");
+
+export const decodeCursor = (cursor) =>
+  JSON.parse(Buffer.from(cursor, "base64url").toString());

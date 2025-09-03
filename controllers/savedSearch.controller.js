@@ -3,18 +3,20 @@ import SavedSearch from "../models/savedSearch.model.js";
 // Create a saved search
 export const createSavedSearch = async (req, res, next) => {
   try {
+    // Make sure user info comes from token
+    const { id: userId, organizationId } = req.user;
     const { name, query, isGlobal } = req.body;
 
-    if (!req.user) {
-      return res.status(401).json({ success: false, message: "Unauthorized: user not found in request" });
+    if (!userId || !organizationId) {
+      return res.status(401).json({ success: false, message: "Unauthorized: missing userId or organizationId" });
     }
 
     const savedSearch = await SavedSearch.create({
-      organizationId: req.user.organizationId,
-      userId: query.userId,  // ✅ saved from query
+      organizationId,
+      userId, // secure assignment from token
       name,
       query,
-      isGlobal,
+      isGlobal: !!isGlobal,
     });
 
     res.status(201).json({ success: true, data: savedSearch });
@@ -26,7 +28,12 @@ export const createSavedSearch = async (req, res, next) => {
 // List saved searches (scoped to org + user/global)
 export const listSavedSearches = async (req, res, next) => {
   try {
-    const savedSearches = await SavedSearch.find({});
+    const { id: userId, organizationId } = req.user;
+
+    const savedSearches = await SavedSearch.find({
+      organizationId,
+      $or: [{ userId }, { isGlobal: true }],
+    }).sort({ createdAt: -1 });
 
     res.json({ success: true, data: savedSearches });
   } catch (error) {
@@ -34,17 +41,19 @@ export const listSavedSearches = async (req, res, next) => {
   }
 };
 
-// Get single saved search (must belong to org + user/global)
+// Get single saved search
 export const getSavedSearch = async (req, res, next) => {
   try {
-    const id = req.params.id;
+    const { id: userId, organizationId } = req.user;
+
     const savedSearch = await SavedSearch.findOne({
-      _id: id,
-      
+      _id: req.params.id,
+      organizationId,
+      $or: [{ userId }, { isGlobal: true }],
     });
 
     if (!savedSearch) {
-      return res.status(404).json({ success: false, message: "Not found" });
+      return res.status(404).json({ success: false, message: "Not found or not authorized" });
     }
 
     res.json({ success: true, data: savedSearch });
@@ -53,13 +62,15 @@ export const getSavedSearch = async (req, res, next) => {
   }
 };
 
-// Delete saved search (must belong to org + user/global)
+// Delete saved search
 export const deleteSavedSearch = async (req, res, next) => {
   try {
-    const id = req.params.id;
+    const { id: userId, organizationId } = req.user;
+
     const deleted = await SavedSearch.findOneAndDelete({
-      _id: id,
-      
+      _id: req.params.id,
+      organizationId,
+      $or: [{ userId }, { isGlobal: true }],
     });
 
     if (!deleted) {

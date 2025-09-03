@@ -8,20 +8,20 @@ const SavedSearchSchema = new mongoose.Schema(
       required: true,
     },
     userId: {
-      type: String, // or ObjectId if you have a User collection
+      type: String,
       required: true,
     },
     name: {
       type: String,
-      required: true, // e.g. "Failed logins in 24h"
+      required: true,
     },
     query: {
       type: Object,
-      required: true, // store filters: { eventType: "LOGIN_FAILED", dateRange: "last24h" }
+      required: true,
     },
     isGlobal: {
       type: Boolean,
-      default: false, // org-wide vs personal saved search
+      default: false,
     },
   },
   { timestamps: true }
